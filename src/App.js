@@ -33,16 +33,17 @@ export class App extends Component {
             list.push({
               id:portfolios[i].id,
               name:portfolios[i].name,
-              tickers:array
+              tickers:array,
+              isActive:portfolios[i].isActive
             })
           }
           if(list.length===0){
             this.createPortfolio('My portfolio')
-            this.createMonthStack();
           }else{
+            // console.log(list[0].name);
             this.setState({portfolios:list});
-            this.setState({currentportfolio:list[0]});
-            this.createMonthStack(list[0]);          
+            // this.selectPortfolio(list[0].name)
+
           }
           let activeList=[];
           for(var a=0;a<list.length;a++){
@@ -53,14 +54,13 @@ export class App extends Component {
             }
           }
           if(activeList.length>0){
-            this.addDividendData(activeList);             
+            this.addDividendData(activeList,[]);             
           }
         })
-        
-        
   }
 
   addTicker(id,shares){
+    let current = this.state.portfolios.filter(portfolio => portfolio.isActive===true);
     if(this.state.currentportfolio.name){
       if(shares===undefined){
         shares=0;
@@ -70,31 +70,20 @@ export class App extends Component {
         if(this.state.currentportfolio.tickers[i][0]===id){
           tickerFound=true;
         }
-      }    
+      }
+      console.log(tickerFound);
       if(!tickerFound){
         // Add ticker to portfolio (name,shares)
         let newTicker=[id,shares];
-        let updatedTickers=this.state.currentportfolio.tickers.concat([newTicker]);
-        let updated=this.state.currentportfolio;
-        updated.tickers=updatedTickers;
-        this.setState({currentportfolio:updated});
-        this.updatePortfolioList(updated);
-        this.savePortfolioToDB(updated);
-        this.addDividendData([id]);
-
-        // Get ticker data
-      //   this.active.push(id);
-      //   let data={name:id};
-      //   const options={
-      //     method:'POST',
-      //     headers: {
-      //       'Content-Type': "application/json;charset=UTF-8"  
-      //     },
-      //     body: JSON.stringify(data)
-      //   }
-      //   fetch('http://localhost:3000/search',options)
-      //     .then(res => res.json())
-      //     .then(ticker => this.setState({activeList:[...this.state.activeList,ticker.data[0]]}));      
+        current[0].tickers.push(newTicker);
+        let portfolios=this.state.portfolios.map(portfolio => portfolio.isActive===true ? portfolio=current[0] : portfolio)
+        this.savePortfolioToDB(current[0]);
+        this.addDividendData([id],current[0],portfolios);
+      }else{
+        console.log('test');
+        this.savePortfolioToDB(current[0]);
+        let portfolios=this.state.portfolios.map(portfolio => portfolio.isActive===true ? portfolio=current[0] : portfolio)
+        this.setState({currentportfolio:current[0],portfolios:portfolios});
       }
     }
   }
@@ -102,10 +91,10 @@ export class App extends Component {
   deleteTicker(id){
     for(var i=0;i<this.state.currentportfolio.tickers.length;i++){
       if(this.state.currentportfolio.tickers[i][0]===id){
+        console.log(id);
         let updated=this.state.currentportfolio;
         updated.tickers.splice(i, 1);    
         this.setState({currentportfolio: updated});
-        this.updatePortfolioList(updated);
         this.savePortfolioToDB(updated);
       }
     }
@@ -113,8 +102,7 @@ export class App extends Component {
   }
 
   addShares(ticker,count){
-    let amount=count.target.value===''? 0 :count.target.value;
-    console.log(amount);    
+    let amount=count.target.value===''? 0 :count.target.value; 
     let current = this.state.currentportfolio.tickers;
     for(var i=0;i<current.length;i++){
       if(current[i][0]===ticker){
@@ -125,7 +113,6 @@ export class App extends Component {
     let updated=this.state.currentportfolio;
     updated.tickers=current;
     this.setState({currentportfolio: updated});
-    this.updatePortfolioList(updated);
     this.savePortfolioToDB(updated);
   }
 
@@ -139,11 +126,11 @@ export class App extends Component {
     let newPortfolio={
       id:newId,
       name:e,
-      tickers:[]
+      tickers:[],
+      isActive:false
     }
 
     this.setState({portfolios:[...this.state.portfolios,newPortfolio]});
-
     // Save to database
     const options={
       method:'POST',
@@ -154,26 +141,15 @@ export class App extends Component {
     }
     fetch('http://localhost:3000/createPortfolio',options)
       .then(res => res.json());
-      // .then(newPortfolio => this.setState({portfolio:[...this.state.portfolio,newPortfolio]}));
+      // .then(this.selectPortfolio(e));
 
   }
 
   selectPortfolio(name){
     let portfolios=this.state.portfolios;
-    let selectPortfolio;
-    for(var i=0;i<portfolios.length;i++){
-      if(portfolios[i].name===name){
-        selectPortfolio=portfolios[i];
-      }
-    }
-    let selectedPortfolio={
-      id:selectPortfolio.id,
-      name:selectPortfolio.name,
-      tickers:selectPortfolio.tickers     
-    }
-    console.log('test');
-    this.setState({currentportfolio:selectedPortfolio});
-    this.createMonthStack(selectedPortfolio);
+    portfolios.forEach(portfolio => portfolio.name===name ?portfolio.isActive=true:portfolio.isActive=false);
+    let selected=portfolios.filter(portfolio => portfolio.name===name);
+    this.setState({currentportfolio:selected[0]});
   }
 
   deletePortfolio(name){
@@ -211,15 +187,7 @@ export class App extends Component {
     return selectedPortfolio;
   }
 
-  updatePortfolioList(updated){
-    this.state.portfolios.map(portfolio => {
-      if(portfolio.id===updated.id){
-        portfolio.tickers=updated.tickers;
-      }
-    })
-  }
-
-  addDividendData(tickers){
+  addDividendData(tickers,currentPortfolio,allPortfolios){
     if(this.state.dividendData[tickers]===undefined){
       let data={data:tickers};
       const options={
@@ -243,8 +211,6 @@ export class App extends Component {
                 this.dividend = [dividend];
             }
           }
-          // console.log(dividends)
-          // console.log(this.state.dividendData['FTI'])
           let data=this.state.dividendData;
           for(var i=0;i<dividends.length;i++){
             let ticker = dividends[i].ticker;
@@ -263,14 +229,24 @@ export class App extends Component {
                 data[ticker] = new company(id,name,country,dividendType,exDiv,payDate,dividend);
             }  
           }
-          this.setState({dividendData:data});
+          // this.setState({dividendData:data});
+          if(!Object.keys(this.state.currentportfolio).length===true){
+            let portfolios=this.state.portfolios;
+            portfolios.map(portfolio => {
+              portfolio.dividendData=data;
+            });
+            portfolios[0].isActive=true;
+            this.setState({currentportfolio:this.state.portfolios[0],portfolios:portfolios});
+          }else{
+            currentPortfolio.dividendData=data;
+            this.setState({currentportfolio:currentPortfolio,portfolios:allPortfolios});
+          }
         });      
     }
 
   }
 
   savePortfolioToDB(updated){
-    console.log(updated);
     const options={
       method:'POST',
       headers: {
@@ -283,61 +259,7 @@ export class App extends Component {
       .then(message => console.log(message));
   }
 
-  createMonthStack(portfolio){
-    let tickers = portfolio.tickers;
-    let data= this.state.dividendData
-
-    let promise=new Promise((resolve,reject)=>{
-      resolve(this.state.dividendData)
-    })
-
-    promise.then((value)=>{
-      console.log(value)
-    })
-    // if(!Object.keys(data).length===true){
-    //   this.createMonthStack(portfolio);
-    // }
-    
-
-    // console.log(data);
-
-
-    // class monthtTrack{
-    //   constructor(id){
-    //     this.id=id;
-    //     this.data=[];
-    //   }
-    // }
-    // let monthStackData={};
-    // for(var a=0;a<12;a++){
-    //     monthStackData[a]=new monthtTrack(a);
-    // }
-
-    // for(var i=0;i<tickers.length;i++){
-
-    //     let len = data[tickers[i][0]].payDate.length;
-    //     console.log(data[tickers[i][0]]);
-    //     for(var j=0;j<len;j++){
-    //         let d = new Date(data[tickers[i][0]].payDate[j]);
-    //         monthStackData[d.getMonth()].data.push({
-    //             ticker : tickers[i][0],
-    //             name : data[tickers[i][0]].name,
-    //             exDiv : data[tickers[i][0]].exDiv[j],
-    //             payDate : data[tickers[i][0]].payDate[j],
-    //             dividend : data[tickers[i][0]].dividend[j],
-    //             country : data[tickers[i][0]].country,
-    //             dividendType : data[tickers[i][0]].dividendType,
-    //         });
-    //     }
-    // }
-    // console.log(monthStackData);
-
-    // // console.log(portfolio,this.state.dividendData);
-    // console.log('Create Month stack');
-  }
-
   render(){
-    // console.log(this.state);
     return (
       <div className="App">
         <header className="App-header">
@@ -348,7 +270,7 @@ export class App extends Component {
               <Portfolios createPortfolio={this.createPortfolio.bind(this)} allPortfolios={this.state.portfolios} selectPortfolio={this.selectPortfolio.bind(this)} selectedPortfolio={this.state.currentportfolio.name} deletePortfolio={this.deletePortfolio.bind(this)}/>
               <MainTickerList onChange={this.currentportfolio} tickers={this.state.currentportfolio.tickers} deleteTicker={this.deleteTicker.bind(this)} addShares={this.addShares.bind(this)}/>
             </div>
-              <Calender dividendData={this.state.dividendData} currentportfolio={this.state.currentportfolio}/>
+              <Calender currentportfolio={this.state.currentportfolio}/>
           </div>
         </header>
       </div>

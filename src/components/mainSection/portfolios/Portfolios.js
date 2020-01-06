@@ -71,6 +71,7 @@ export class Portfolios extends Component {
 
     render() {
         let visibilityState=this.state.showAll.visibility;
+        // console.log(this.props);
         return (
             <div className='portfolios'>
                 <h2 className='selectedPortfolio'>{this.props.selectedPortfolio}</h2>

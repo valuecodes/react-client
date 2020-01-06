@@ -155,9 +155,9 @@
 /* Calender */
 .calender{
   width: 1fr;
-  margin-right: 180px;
+  /* margin-right: 180px; */
   height: 400px;
-  background-color: aqua;
+  background-color: rgb(196, 196, 196);
   display: grid;
   grid-template-rows: 1fr 50px;
 }
@@ -166,6 +166,26 @@
 .monthStack{
   display: grid;
   grid-template-columns: repeat(12,1fr);
+}
+
+.monthColumn{
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+
+/* Calender month */
+.calenderMonth{
+  border: 2px solid black;
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: 5px;
+}
+
+.calenderMonth p{
+  padding: 0px;
+  margin: 0px;
+  background-color: rgb(223, 223, 223);
 }
 
 /* MonthNames */
